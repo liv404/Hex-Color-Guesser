@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
+    <!-- Basic Needs -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background-color: #faebd7;
+            color: #000;
+            font-size: 20px;
+            text-align: center;
+            font-family: 'Raleway', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .box-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 100px;
+        }
+
+        .box {
+            width: 300px;
+            height: 300px;
+            padding: 10px;
+            margin: 10px;
+            border: 2.5px solid #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .text-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .text-input {
+            background: none;
+            border: none;
+            border-bottom: 2px solid #000;
+            padding-left: 20px;
+            padding-right: 10px;
+            font-size: 20px;
+            font-family: 'Raleway', sans-serif;
+        }
+
+        .text-input-wrapper::before {
+            content: '#';
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            font-family: 'Raleway', sans-serif;
+            color: #000;
+        }
+    </style>
+    <script>
+        let availableGuesses = 3;
+        let currentColor = '#FFFFFF';
+        let showAnswer = false;
+        let colorMode = 'Light'
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.text-input').addEventListener('input', function() {
+                this.value = this.value.toUpperCase().replace(/[^A-F0-9]/g, '');
+            });
+            newColor();
+            updateGuessesLeft(3);
+        });
+
+        // refreshes game state (space)
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                newColor();
+                updateGuessesLeft(3);
+                updateGuessedColorDisplay('#faebd7');
+                showAnswer = false;
+                updateAnswerDisplay();
+                hidePercentageCorrectDisplay();
+            }
+        });
+
+        // toggles show answer display
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'KeyZ') {
+                showAnswer = !showAnswer;
+                updateAnswerDisplay();
+            }
+        });
+
+        // handles guesses
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Enter') {
+                if (availableGuesses !== 0) {
+                    const guessInput = document.querySelector('[name="guess"]');
+                    const guess = guessInput.value;
+                    if (guess.length === 6 && isValidHexColor(guess)) {
+                        availableGuesses--;
+                        updateGuessesLeft();
+                        guessInput.value = '';
+                        updateGuessedColorDisplay(`#${guess}`);
+                        generatePercentageCorrect(`#${guess}`);
+                    } else {
+                        console.log('Invalid guess')
+                    }
+                }
+            }
+        });
+
+        // toggle dark mode 
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'KeyX') {
+                const body = document.querySelector('body');
+                const boxes = document.querySelectorAll('.box');
+                const textInput = document.querySelector('.text-input');
+
+                const dynamicStyles = document.querySelector('style#dynamic-styles') || document.createElement('style');
+                dynamicStyles.id = 'dynamic-styles';
+
+                let backgroundColor;
+                let accentColor;
+
+                if (colorMode === 'Dark') {
+                    backgroundColor = '#faebd7';
+                    accentColor = '#000';
+                    colorMode = 'Light';
+                } else {
+                    backgroundColor = '#191919';
+                    accentColor = '#FFF';
+                    colorMode = 'Dark';
+                }
+                
+                // changes background color
+                body.style.backgroundColor = backgroundColor; 
+
+                // changes accent color
+                body.style.color = accentColor;
+                boxes.forEach(box => {
+                    box.style.borderColor = accentColor;  
+                });
+                textInput.style.borderBottomColor = accentColor; 
+                textInput.style.color = accentColor; 
+
+                dynamicStyles.innerHTML = `
+                    .text-input-wrapper::before {
+                        color: ${accentColor};
+                    }
+                    .text-input::placeholder {
+                        color: ${accentColor};
+                    }
+                `;
+                document.head.appendChild(dynamicStyles);
+            }
+        });
+
+        // generates color
+        function newColor() {
+            let rgb = [];
+            for (let i = 0; i < 3; i++) {
+                rgb.push(Math.floor(Math.random() * 256));
+            }
+
+            let hexColor = rgb.map(value => {
+                let hex = value.toString(16).padStart(2, '0').toUpperCase();
+                return hex;
+            }).join('');
+
+            currentColor = `#${hexColor}`;
+            const toGuess = document.querySelector('[name="toGuess"]');
+            toGuess.style.backgroundColor = currentColor;
+        }
+
+        // updates guesses left
+        function updateGuessesLeft(newGuessAmount) {
+            if (newGuessAmount !== undefined) {
+                availableGuesses = newGuessAmount;
+            }
+            const guessesLeft = document.querySelector('[name="guessesLeft"]');
+            if (availableGuesses === 0) {
+                guessesLeft.textContent = 'No guesses left';
+                showAnswer = true;
+                updateAnswerDisplay();
+            } else {
+                guessesLeft.textContent = `Guesses left: ${availableGuesses}`;
+            }
+        }
+
+        // updates guessed display
+        function updateGuessedColorDisplay(newGuessedColor) {
+            const guessedDisplay = document.querySelector('[name="guessed"]');
+            guessedDisplay.style.backgroundColor = newGuessedColor;
+        }
+
+        // Displays the answer 
+        function updateAnswerDisplay() {
+            const answer = document.querySelector('[name="answer"]');
+            answer.textContent = currentColor;
+            answer.hidden = !showAnswer;
+        }
+
+        // generates the percentage of how similar the user's guess is to the correct answer
+        function generatePercentageCorrect(guess) {
+            const guessColor = parseHexColor(guess);
+            const currentColorRGB = parseHexColor(currentColor);
+
+            const totalDistance =
+                Math.abs(guessColor.r - currentColorRGB.r) +
+                Math.abs(guessColor.g - currentColorRGB.g) +
+                Math.abs(guessColor.b - currentColorRGB.b);
+
+            const maxDistance = 3 * 255;
+
+            const percentageCorrect = Math.max(0, 100 - (totalDistance / maxDistance * 100));
+            updatePercentageCorrect(percentageCorrect.toFixed(2));
+        }
+
+        // updates percentage correct
+        function updatePercentageCorrect(percentage) {
+            const percentageElement = document.querySelector('[name="percentageCorrect"]');
+            percentageElement.textContent = `${percentage}%`;
+            percentageElement.hidden = false;
+            if (percentage >= 90) {
+                percentageElement.style.color = '#00FF00';
+            } else {
+                percentageElement.style.color = '#FF0000';
+            }
+        }
+
+        // hide percentage correct
+        function hidePercentageCorrectDisplay() {
+            const percentageElement = document.querySelector('[name="percentageCorrect"]');
+            percentageElement.hidden = true;
+        }
+
+        // checks if the hex is valid
+        function isValidHexColor(hex) {
+            return /^[0-9A-F]{6}$/i.test(hex);
+        }
+
+        // Utility function to convert hex color to RGB object
+        function parseHexColor(hex) {
+            hex = hex.replace(/^#/, '');
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16)
+            };
+        }
+    </script>
+    <title>Hex Color Guesser</title>
+</head>
+<body>
+    <div class="general-container">
+        <h2 name="guessesLeft">Guesses left: </h2>
+        <h2 name="answer" hidden="true"></h2>
+        <div class="box-container">
+            <div>
+                Color to guess
+                <div name="toGuess" class="box"></div>
+            </div>
+            <div>
+                <div class="text-input-wrapper">
+                    <input type="text" name="guess" class="text-input" placeholder="Your guess" maxlength="6">
+                </div>
+                <div name="guessed" class="box"></div>
+            </div>
+        </div>
+        <h2 name="percentageCorrect" hidden="true"></h2>
+        <h6>Press Space for a new color</h6>
+    </div>
+</body>
+</html>
